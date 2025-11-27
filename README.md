@@ -73,34 +73,8 @@ npm install
 
 # Configurar variables de entorno
 cp .env.example .env
-# Editar .env con tus credenciales AWS
-```
+# Editar .env con tus credenciales AWS (ver sección siguiente)
 
-### **Configuración del `.env`**
-
-```bash
-# AWS Configuration
-AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=tu_access_key
-AWS_SECRET_ACCESS_KEY=tu_secret_key
-
-# SQS URLs (crear en AWS Console)
-SQS_FINANCIAL_INSIGHT_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/your-account-id/financial-insight-queue
-SQS_GOALS_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/your-account-id/goals-queue
-SQS_BUDGET_BALANCER_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/your-account-id/budget-balancer-queue
-SQS_MOTIVATIONAL_COACH_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/your-account-id/motivational-coach-queue
-
-# DynamoDB
-DYNAMODB_TABLE=smartwallet-semantic-memory
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-```
-
-### **Ejecutar Localmente**
-
-```bash
 # Levantar Redis
 docker-compose up -d
 
@@ -109,6 +83,40 @@ npm run start:dev
 ```
 
 El servidor estará disponible en `http://localhost:3000`
+
+### **Configuración del `.env`**
+
+Crea el archivo `.env` con tus credenciales AWS reales:
+
+```bash
+# AWS Configuration (Credenciales Temporales)
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=AKIA...  # Tu Access Key ID
+AWS_SECRET_ACCESS_KEY=wJalr...  # Tu Secret Access Key
+AWS_SESSION_TOKEN=IQoJb3JpZ2luX2VjE...  # Session Token (para credenciales temporales)
+
+# SQS URLs - Usar los nombres EXACTOS de tus colas en AWS
+# Formato: https://sqs.{region}.amazonaws.com/{account-id}/{queue-name}
+SQS_FINANCIAL_INSIGHT_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/905418183802/smartwallet-financial-insight-queue
+SQS_GOALS_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/905418183802/smartwallet-goals-queue
+SQS_BUDGET_BALANCER_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/905418183802/smartwallet-budget-balancer-queue
+SQS_MOTIVATIONAL_COACH_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/905418183802/smartwallet-motivational-coach-queue
+
+# DynamoDB Configuration
+DYNAMODB_TABLE=smartwallet-semantic-memory
+
+# Redis Configuration (Local)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+```
+
+Esto se encuentra de igual forma en el archivo `.env.example` como ejemplo.
+
+> **⚠️ Importante**: 
+> - Las URLs de SQS deben coincidir **exactamente** con los nombres de tus colas en AWS Console
+> - Si usas credenciales temporales de AWS (ej: AWS Academy), incluye `AWS_SESSION_TOKEN`
+> - Verifica los nombres de las colas con: `aws sqs list-queues --region us-east-1`
 
 ---
 
@@ -229,7 +237,7 @@ orchestrator/
 | **Orquestación** | LangGraph | Decisión de flujos (futuro: con LLM) |
 | **Mensajería** | AWS SQS | Comunicación asíncrona con agentes |
 | **Memoria Episódica** | Redis | Eventos recientes (TTL 24h) |
-| **Memoria Semántica** | DynamoDB | Patrones agregados a largo plazo |
+| **Memoria Semántica** | DynamoDB | Patrones agregados (partition key: `user_id`, sort key: `pattern_type`) |
 | **Config** | @nestjs/config | Variables de entorno |
 | **Testing** | Jest | Tests unitarios y E2E |
 
@@ -282,6 +290,65 @@ docker run -p 3000:3000 --env-file .env orchestrator:latest
 2. Crear ECS Task Definition
 3. Configurar Service con auto-scaling
 4. Variables de entorno via AWS Secrets Manager
+
+---
+
+## 🐛 Troubleshooting
+
+### **Error: "AWS.SimpleQueueService.NonExistentQueue"**
+
+**Causa**: La URL de la cola SQS no coincide con el nombre real en AWS.
+
+**Solución**:
+```bash
+# 1. Listar tus colas reales
+aws sqs list-queues --region us-east-1
+
+# 2. Copiar las URLs EXACTAS a tu .env
+# Ejemplo de salida:
+# "https://sqs.us-east-1.amazonaws.com/905418183802/smartwallet-goals-queue"
+
+# 3. Verificar que .env tenga las URLs correctas
+cat .env | grep SQS
+```
+
+### **Error: "UnrecognizedClientException: The security token included in the request is invalid"**
+
+**Causa**: Credenciales AWS inválidas o expiradas.
+
+**Solución**:
+```bash
+# 1. Verificar credenciales
+aws sts get-caller-identity
+
+# 2. Si usas AWS Academy, regenera credenciales:
+#    - Ve a AWS Academy → AWS Details → AWS CLI
+#    - Copia las 3 variables (ACCESS_KEY, SECRET_KEY, SESSION_TOKEN)
+#    - Pégalas en tu .env
+
+# 3. Asegúrate de incluir AWS_SESSION_TOKEN en .env
+```
+
+### **Error: "Cannot connect to Redis"**
+
+**Solución**:
+```bash
+# Verificar que Redis esté corriendo
+docker-compose ps
+
+# Si no está corriendo, iniciarlo
+docker-compose up -d redis
+```
+
+### **Logs de Debugging**
+
+Para ver qué URL de SQS se está usando:
+```bash
+# Los logs mostrarán:
+[EventsService] Processing event: NEW_GOAL_CREATED for user user456
+[EventsService] Decision: agent=goals, queueUrl=https://sqs...
+[SqsService] Sending to queue URL: https://sqs...
+```
 
 ---
 
