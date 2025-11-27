@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 // import { StateGraph } from '@langchain/langgraph';
 // TODO: Integrar StateGraph correctamente cuando se configure LangGraph
 
 @Injectable()
 export class LangGraphService {
-  constructor() {
+  constructor(private config: ConfigService) {
     // Por ahora usamos lógica simple sin StateGraph
     // TODO: Implementar graph completo con @langchain/langgraph
   }
@@ -24,7 +25,7 @@ export class LangGraphService {
       case 'FINANCIAL_SUMMARY_REQUEST':
         agent = 'financial-insight';
         queueUrl =
-          process.env.SQS_FINANCIAL_INSIGHT_QUEUE_URL ||
+          this.config.get('SQS_FINANCIAL_INSIGHT_QUEUE_URL') ||
           'https://sqs.us-east-1.amazonaws.com/default/financial-insight-queue';
         break;
 
@@ -34,7 +35,7 @@ export class LangGraphService {
       case 'GOAL_VIABILITY_CHECK':
         agent = 'goals';
         queueUrl =
-          process.env.SQS_GOALS_QUEUE_URL ||
+          this.config.get('SQS_GOALS_QUEUE_URL') ||
           'https://sqs.us-east-1.amazonaws.com/default/goals-queue';
         break;
 
@@ -44,7 +45,7 @@ export class LangGraphService {
       case 'SPENDING_LIMIT_EXCEEDED':
         agent = 'budget-balancer';
         queueUrl =
-          process.env.SQS_BUDGET_BALANCER_QUEUE_URL ||
+          this.config.get('SQS_BUDGET_BALANCER_QUEUE_URL') ||
           'https://sqs.us-east-1.amazonaws.com/default/budget-balancer-queue';
         break;
 
@@ -55,7 +56,7 @@ export class LangGraphService {
       case 'GOAL_REJECTED':
         agent = 'motivational-coach';
         queueUrl =
-          process.env.SQS_MOTIVATIONAL_COACH_QUEUE_URL ||
+          this.config.get('SQS_MOTIVATIONAL_COACH_QUEUE_URL') ||
           'https://sqs.us-east-1.amazonaws.com/default/motivational-coach-queue';
         break;
 
@@ -63,7 +64,7 @@ export class LangGraphService {
       default:
         agent = 'financial-insight';
         queueUrl =
-          process.env.SQS_FINANCIAL_INSIGHT_QUEUE_URL ||
+          this.config.get('SQS_FINANCIAL_INSIGHT_QUEUE_URL') ||
           'https://sqs.us-east-1.amazonaws.com/default/financial-insight-queue';
     }
 
