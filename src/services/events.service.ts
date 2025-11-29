@@ -1,10 +1,12 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PostgresEpisodicService } from '../memory/postgres-episodic.service';
 import { PostgresSemanticService } from '../memory/postgres-semantic.service';
 import { TransactionsDbService } from '../memory/transactions-db.service';
 import { GoalsDbService } from '../memory/goals-db.service';
 import { SqsService } from '../services/sqs.service';
 import { LangGraphService } from '../services/langgraph.service';
+import { firstValueFrom, fromEvent, timeout, catchError, of } from 'rxjs';
 
 @Injectable()
 export class EventsService {
@@ -15,6 +17,7 @@ export class EventsService {
     private goalsDb: GoalsDbService,
     private sqsService: SqsService,
     private langGraphService: LangGraphService,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   async processEvent(event: any) {
@@ -83,7 +86,24 @@ export class EventsService {
         );
       }
 
-      return { status: 'processed', correlationId: decision?.id || null };
+      // Wait for response from agent via Callback Queue
+      console.log(`[EventsService] Waiting for response for user ${userId}...`);
+      const response = await this.waitForResponse(userId);
+
+      if (response) {
+        return {
+          status: 'completed',
+          correlationId: decision?.id || null,
+          agentResponse: response,
+        };
+      } else {
+        return {
+          status: 'processed_async',
+          message:
+            'Agent is processing the request. Response will be handled asynchronously.',
+          correlationId: decision?.id || null,
+        };
+      }
     } catch (err: any) {
       console.error(
         '[EventsService] processEvent error:',
@@ -96,6 +116,20 @@ export class EventsService {
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
+    }
+  }
+
+  private async waitForResponse(userId: string): Promise<any> {
+    // Wait for 15 seconds for the agent.response.{userId} event
+    try {
+      return await firstValueFrom(
+        fromEvent(this.eventEmitter, `agent.response.${userId}`).pipe(
+          timeout(15000), // 15 seconds timeout
+          catchError(() => of(null)), // Return null on timeout
+        ),
+      );
+    } catch (error) {
+      return null;
     }
   }
 

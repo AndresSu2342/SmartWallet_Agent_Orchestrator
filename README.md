@@ -181,7 +181,6 @@ cp .env.example .env
 | **Memoria Episódica** | PostgreSQL | Trazabilidad de acciones de agentes |
 | **Memoria Semántica** | PostgreSQL | Contexto general del usuario |
 | **Config** | @nestjs/config | Variables de entorno |
-| **Testing** | Jest | Tests unitarios y E2E |
 
 ---
 
@@ -276,24 +275,6 @@ aws sts get-caller-identity
 4. Push: `git push origin feature/nueva-funcionalidad`
 5. Abre un Pull Request
 
----
-
-## 📝 Roadmap
-
-- [x] Endpoint `/events` con procesamiento básico
-- [x] Integración con PostgreSQL (memoria episódica)
-- [x] Integración con PostgreSQL (memoria semántica)
-- [x] Decisión de flujos con LangGraph
-- [x] Publicación a SQS por agente
-- [ ] Worker de callbacks para respuestas de agentes
-- [ ] Logging estructurado con Winston
-- [ ] Integración con LLM (OpenAI) para decisiones inteligentes
-- [ ] Tests E2E completos
-- [ ] CI/CD con GitHub Actions
-- [ ] Despliegue automatizado a ECS
-
----
-
 ## 📄 Licencia
 
 Este proyecto es parte del ecosistema Smart Wallet.
@@ -308,7 +289,6 @@ Desarrollado con ❤️ por el equipo de Smart Wallet
 
 ## 📚 Documentación Adicional
 
-- [Guía de Testing](./docs/testing.md)
 - [Mapeo de Eventos](./docs/event-mapping.md)
 - [Arquitectura Completa](./docs/architecture.md)
 
