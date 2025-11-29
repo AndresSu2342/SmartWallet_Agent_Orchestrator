@@ -81,36 +81,84 @@ Todos los agentes reciben un mensaje con esta estructura unificada:
 
 ### **1. Financial Insight Agent**
 **Cola:** `SQS_FINANCIAL_INSIGHT_QUEUE_URL`
-**Eventos:** `NEW_TRANSACTION`, `TRANSACTION_UPDATED`, `ANOMALY_DETECTION_REQUEST`, `FINANCIAL_SUMMARY_REQUEST`
+**Eventos:** `NEW_TRANSACTION`, `TRANSACTION_UPDATED`, `ANOMALY_DETECTION_REQUEST`, `FINANCIAL_SUMMARY_REQUEST`, `ANT_EXPENSES_PROMPT`, `REPETITIVE_EXPENSES_PROMPT`, `HEALTH_PROMPT`, `LEAKS_PROMPT`, `FULL_ANALYSIS_PROMPT`
 
-**Ejemplo Input (`POST /events`):**
+**Ejemplos de Input (`POST /events`):**
+
+#### Detectar Gastos Hormiga
 ```json
 {
-  "userId": "1",
-  "type": "NEW_TRANSACTION",
-  "data": {
-    "amount": 150.00,
-    "category": "Food",
-    "description": "Grocery shopping",
-    "date": "2023-10-27T10:00:00Z"
-  }
+  "userId": "123",
+  "type": "ANT_EXPENSES_PROMPT",
+  "data": {}
+}
+```
+
+#### Análisis de Salud Financiera
+```json
+{
+  "userId": "123",
+  "type": "HEALTH_PROMPT",
+  "data": {}
+}
+```
+
+#### Análisis Completo
+```json
+{
+  "userId": "123",
+  "type": "FULL_ANALYSIS_PROMPT",
+  "data": {}
 }
 ```
 
 ### **2. Goals Agent**
 **Cola:** `SQS_GOALS_QUEUE_URL`
-**Eventos:** `NEW_GOAL_CREATED`, `GOAL_UPDATED`, `GOAL_VIABILITY_CHECK`
+**Eventos:** `GOAL_DISCOVERY_REQUEST`, `GOAL_VIABILITY_CHECK`, `GOAL_ADJUSTMENT_REQUEST`, `GOAL_PROGRESS_UPDATE`
 
-**Ejemplo Input (`POST /events`):**
+**Ejemplos de Input (`POST /events`):**
+
+#### Descubrimiento de Metas
 ```json
 {
-  "userId": "1",
-  "type": "NEW_GOAL_CREATED",
+  "userId": "123",
+  "type": "GOAL_DISCOVERY_REQUEST",
+  "data": {}
+}
+```
+
+#### Evaluar Viabilidad de Nueva Meta
+```json
+{
+  "userId": "123",
+  "type": "GOAL_VIABILITY_CHECK",
   "data": {
-    "goalId": "101",
-    "name": "Vacation to Japan",
-    "targetAmount": 5000,
-    "deadline": "2024-12-01"
+    "proposed_goal": {
+      "name": "Comprar Laptop",
+      "target_amount": 1500000,
+      "due_date": "2026-06-01",
+      "description": "Laptop para trabajo"
+    }
+  }
+}
+```
+
+#### Ajuste de Metas (Rebalanceo)
+```json
+{
+  "userId": "123",
+  "type": "GOAL_ADJUSTMENT_REQUEST",
+  "data": {}
+}
+```
+
+#### Seguimiento de Progreso
+```json
+{
+  "userId": "123",
+  "type": "GOAL_PROGRESS_UPDATE",
+  "data": {
+    "goalId": "8000"
   }
 }
 ```
