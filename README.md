@@ -67,6 +67,18 @@ Todos los agentes reciben un mensaje con esta estructura unificada:
     "userId": "1",
     "type": "EVENT_TYPE",
     "data": { ... }
+  },
+  "context": {
+    // Contexto enriquecido desde PostgreSQL
+    "episodic": [ ... ],       // Últimos 100 eventos del usuario
+    "semantic": { ... },       // Perfil financiero y motivacional
+    "transactions": [ ... ],   // Últimas 20 transacciones
+    "goals": [ ... ]           // Metas y presupuestos activos
+  },
+  "timestamp": "2023-10-27T10:00:00.000Z"
+}
+```
+
 ### **1. Financial Insight Agent**
 **Cola:** `SQS_FINANCIAL_INSIGHT_QUEUE_URL`
 **Eventos:** `NEW_TRANSACTION`, `TRANSACTION_UPDATED`, `ANOMALY_DETECTION_REQUEST`, `FINANCIAL_SUMMARY_REQUEST`
