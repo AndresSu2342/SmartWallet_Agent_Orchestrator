@@ -52,7 +52,104 @@ El **Orchestrator Agent** es el cerebro central del ecosistema Smart Wallet. Rec
 
 ---
 
-## 🚀 Inicio Rápido
+## � API y Flujo de Mensajes
+
+El endpoint principal es `POST /events`. El orquestador recibe el evento, enriquece el contexto consultando las bases de datos PostgreSQL, y envía un mensaje enriquecido a la cola SQS del agente correspondiente.
+
+### **Estructura General del Mensaje SQS**
+
+Todos los agentes reciben un mensaje con esta estructura unificada:
+
+```json
+{
+  "event": {
+    // El payload original recibido en /events
+    "userId": "1",
+    "type": "EVENT_TYPE",
+    "data": { ... }
+  },
+  "context": {
+    // Contexto enriquecido desde PostgreSQL
+    "episodic": [ ... ],       // Últimos 100 eventos del usuario
+    "semantic": { ... },       // Perfil financiero y motivacional
+    "transactions": [ ... ],   // Últimas 20 transacciones
+    "goals": [ ... ]           // Metas y presupuestos activos
+  },
+  "timestamp": "2023-10-27T10:00:00.000Z"
+}
+```
+
+### **1. Financial Insight Agent**
+**Cola:** `SQS_FINANCIAL_INSIGHT_QUEUE_URL`
+**Eventos:** `NEW_TRANSACTION`, `TRANSACTION_UPDATED`, `ANOMALY_DETECTION_REQUEST`, `FINANCIAL_SUMMARY_REQUEST`
+
+**Ejemplo Input (`POST /events`):**
+```json
+{
+  "userId": "1",
+  "type": "NEW_TRANSACTION",
+  "data": {
+    "amount": 150.00,
+    "category": "Food",
+    "description": "Grocery shopping",
+    "date": "2023-10-27T10:00:00Z"
+  }
+}
+```
+
+### **2. Goals Agent**
+**Cola:** `SQS_GOALS_QUEUE_URL`
+**Eventos:** `NEW_GOAL_CREATED`, `GOAL_UPDATED`, `GOAL_VIABILITY_CHECK`
+
+**Ejemplo Input (`POST /events`):**
+```json
+{
+  "userId": "1",
+  "type": "NEW_GOAL_CREATED",
+  "data": {
+    "goalId": "101",
+    "name": "Vacation to Japan",
+    "targetAmount": 5000,
+    "deadline": "2024-12-01"
+  }
+}
+```
+
+### **3. Budget Balancer Agent**
+**Cola:** `SQS_BUDGET_BALANCER_QUEUE_URL`
+**Eventos:** `BUDGET_UPDATE_REQUEST`, `BUDGET_REBALANCE`, `SPENDING_LIMIT_EXCEEDED`
+
+**Ejemplo Input (`POST /events`):**
+```json
+{
+  "userId": "1",
+  "type": "SPENDING_LIMIT_EXCEEDED",
+  "data": {
+    "category": "Entertainment",
+    "limit": 200,
+    "currentSpending": 250
+  }
+}
+```
+
+### **4. Motivational Coach Agent**
+**Cola:** `SQS_MOTIVATIONAL_COACH_QUEUE_URL`
+**Eventos:** `GOAL_PROGRESS_UPDATE`, `MILESTONE_REACHED`, `MOTIVATION_REQUEST`, `GOAL_REJECTED`
+
+**Ejemplo Input (`POST /events`):**
+```json
+{
+  "userId": "1",
+  "type": "MILESTONE_REACHED",
+  "data": {
+    "goalId": "101",
+    "milestone": "Saved first $1000",
+    "message": "Great job on hitting your first milestone!"
+  }
+}
+```
+
+## �🚀 Inicio Rápido
 
 ### **Prerrequisitos**
 
@@ -76,36 +173,6 @@ cp .env.example .env
 # Editar .env con tus credenciales de AWS y PostgreSQL
 
 # Modo desarrollo (hot reload)
-npm run start:dev
-```
-
-El servidor estará disponible en `http://localhost:3000`
-
-### **Configuración del `.env`**
-
-Crea el archivo `.env` con tus credenciales AWS y de PostgreSQL:
-
-```bash
-# AWS Configuration
-AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=...
-AWS_SECRET_ACCESS_KEY=...
-
-# SQS URLs
-SQS_FINANCIAL_INSIGHT_QUEUE_URL=...
-
-# PostgreSQL Configuration
-EPISODIC_DB_HOST=...
-SEMANTIC_DB_HOST=...
-TRANSACTIONS_DB_HOST=...
-GOALS_DB_HOST=...
-```
-
----
-
-## 🔧 Stack Tecnológico
-
-| Componente | Tecnología | Propósito |
 |------------|-----------|-----------|
 | **Framework** | NestJS 11 | Arquitectura modular y escalable |
 | **Lenguaje** | TypeScript 5 | Type safety y mejor DX |
@@ -196,23 +263,6 @@ cat .env | grep SQS
 # 1. Verificar credenciales
 aws sts get-caller-identity
 
-# 2. Si usas AWS Academy, regenera credenciales:
-#    - Ve a AWS Academy → AWS Details → AWS CLI
-#    - Copia las 3 variables (ACCESS_KEY, SECRET_KEY, SESSION_TOKEN)
-#    - Pégalas en tu .env
-
-# 3. Asegúrate de incluir AWS_SESSION_TOKEN en .env
-```
-
-
-
-### **Logs de Debugging**
-
-Para ver qué URL de SQS se está usando:
-```bash
-# Los logs mostrarán:
-[EventsService] Processing event: NEW_GOAL_CREATED for user user456
-[EventsService] Decision: agent=goals, queueUrl=https://sqs...
 [SqsService] Sending to queue URL: https://sqs...
 ```
 
