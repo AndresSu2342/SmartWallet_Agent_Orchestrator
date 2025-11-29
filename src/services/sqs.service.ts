@@ -10,7 +10,7 @@ export class SqsService {
     const region = this.config.get<string>('AWS_REGION') || 'us-east-1';
     const accessKeyId = this.config.get<string>('AWS_ACCESS_KEY_ID');
     const secretAccessKey = this.config.get<string>('AWS_SECRET_ACCESS_KEY');
-    const sessionToken = this.config.get<string>('AWS_SESSION_TOKEN'); // Para credenciales temporales
+    const sessionToken = this.config.get<string>('AWS_SESSION_TOKEN');
 
     this.sqs = new SQSClient({
       region,
@@ -19,7 +19,7 @@ export class SqsService {
             credentials: {
               accessKeyId,
               secretAccessKey,
-              ...(sessionToken ? { sessionToken } : {}), // Agregar session token si existe
+              ...(sessionToken ? { sessionToken } : {}),
             },
           }
         : {}),
@@ -29,7 +29,6 @@ export class SqsService {
   async sendToQueue(message: any, queueUrl?: string) {
     const url = queueUrl || this.config.get('SQS_QUEUE_URL');
 
-    // DEBUG: Ver qué URL se está usando
     console.log('[SqsService] Sending to queue URL:', url);
     console.log('[SqsService] Message:', JSON.stringify(message, null, 2));
 

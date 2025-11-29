@@ -2,22 +2,26 @@ import { Module } from '@nestjs/common';
 import { EventsController } from './controllers/events.controller';
 import { EventsService } from './services/events.service';
 import { ConfigModule } from '@nestjs/config';
-import { RedisService } from './memory/redis.service';
-import { DynamoService } from './memory/dynamodb.service';
+import { PostgresEpisodicService } from './memory/postgres-episodic.service';
+import { PostgresSemanticService } from './memory/postgres-semantic.service';
+import { TransactionsDbService } from './memory/transactions-db.service';
+import { GoalsDbService } from './memory/goals-db.service';
 import { SqsService } from './services/sqs.service';
 import { LangGraphService } from './services/langgraph.service';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true, // Variables de entorno accesibles globalmente
+      isGlobal: true,
     }),
   ],
   controllers: [EventsController],
   providers: [
     EventsService,
-    RedisService,
-    DynamoService,
+    PostgresEpisodicService,
+    PostgresSemanticService,
+    TransactionsDbService,
+    GoalsDbService,
     SqsService,
     LangGraphService,
   ],

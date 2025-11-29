@@ -16,7 +16,7 @@ El **Orchestrator Agent** es el cerebro central del ecosistema Smart Wallet. Rec
 ### 🎯 Responsabilidades
 
 - ✅ Recibir eventos del CoreSystem (transacciones, metas, presupuestos)
-- ✅ Consultar memoria dual (Redis + DynamoDB) para contexto del usuario
+- ✅ Consultar memoria unificada en PostgreSQL (Episódica + Semántica + Transacciones + Metas)
 - ✅ Decidir flujo con LangGraph basado en tipo de evento
 - ✅ Publicar mensajes a colas SQS específicas por agente
 - ✅ Generar correlation IDs para trazabilidad end-to-end
@@ -34,10 +34,10 @@ El **Orchestrator Agent** es el cerebro central del ecosistema Smart Wallet. Rec
                        ↓
 ┌─────────────────────────────────────────────────────────────┐
 │                  Orchestrator Agent (NestJS)                 │
-│  ┌────────────┐  ┌──────────────┐  ┌──────────────────┐    │
-│  │   Redis    │  │   DynamoDB   │  │   LangGraph      │    │
-│  │ (Episódica)│  │  (Semántica) │  │   (Decisión)     │    │
-│  └────────────┘  └──────────────┘  └──────────────────┘    │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐    │
+│  │  PostgreSQL  │  │  PostgreSQL  │  │   LangGraph      │    │
+│  │ (Episódica)  │  │  (Semántica) │  │   (Decisión)     │    │
+│  └──────────────┘  └──────────────┘  └──────────────────┘    │
 └──────────────────────┬──────────────────────────────────────┘
                        │ Publish to SQS
          ┌─────────────┼─────────────┬─────────────┐
@@ -57,9 +57,9 @@ El **Orchestrator Agent** es el cerebro central del ecosistema Smart Wallet. Rec
 ### **Prerrequisitos**
 
 - Node.js 20+ LTS
-- Docker & Docker Compose
 - AWS CLI (opcional, para AWS real)
-- Cuenta AWS con SQS y DynamoDB (o usar LocalStack para testing local)
+- Cuenta AWS con SQS (o usar LocalStack para testing local)
+- Bases de datos PostgreSQL (Railway)
 
 ### **Instalación**
 
@@ -73,10 +73,7 @@ npm install
 
 # Configurar variables de entorno
 cp .env.example .env
-# Editar .env con tus credenciales AWS (ver sección siguiente)
-
-# Levantar Redis
-docker-compose up -d
+# Editar .env con tus credenciales de AWS y PostgreSQL
 
 # Modo desarrollo (hot reload)
 npm run start:dev
@@ -86,144 +83,22 @@ El servidor estará disponible en `http://localhost:3000`
 
 ### **Configuración del `.env`**
 
-Crea el archivo `.env` con tus credenciales AWS reales:
+Crea el archivo `.env` con tus credenciales AWS y de PostgreSQL:
 
 ```bash
-# AWS Configuration (Credenciales Temporales)
+# AWS Configuration
 AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=AKIA...  # Tu Access Key ID
-AWS_SECRET_ACCESS_KEY=wJalr...  # Tu Secret Access Key
-AWS_SESSION_TOKEN=IQoJb3JpZ2luX2VjE...  # Session Token (para credenciales temporales)
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
 
-# SQS URLs - Usar los nombres EXACTOS de tus colas en AWS
-# Formato: https://sqs.{region}.amazonaws.com/{account-id}/{queue-name}
-SQS_FINANCIAL_INSIGHT_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/905418183802/smartwallet-financial-insight-queue
-SQS_GOALS_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/905418183802/smartwallet-goals-queue
-SQS_BUDGET_BALANCER_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/905418183802/smartwallet-budget-balancer-queue
-SQS_MOTIVATIONAL_COACH_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/905418183802/smartwallet-motivational-coach-queue
+# SQS URLs
+SQS_FINANCIAL_INSIGHT_QUEUE_URL=...
 
-# DynamoDB Configuration
-DYNAMODB_TABLE=smartwallet-semantic-memory
-
-# Redis Configuration (Local)
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
-```
-
-Esto se encuentra de igual forma en el archivo `.env.example` como ejemplo.
-
-> **⚠️ Importante**: 
-> - Las URLs de SQS deben coincidir **exactamente** con los nombres de tus colas en AWS Console
-> - Si usas credenciales temporales de AWS (ej: AWS Academy), incluye `AWS_SESSION_TOKEN`
-> - Verifica los nombres de las colas con: `aws sqs list-queues --region us-east-1`
-
----
-
-## 📡 API Endpoints
-
-### **POST /events**
-
-Recibe eventos del CoreSystem y los procesa.
-
-**Request:**
-```json
-{
-  "userId": "user123",
-  "type": "NEW_TRANSACTION",
-  "data": {
-    "transactionId": "txn001",
-    "amount": 50000,
-    "category": "food",
-    "description": "Supermercado"
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "status": "processed",
-  "correlationId": "user123-1732659600000"
-}
-```
-
----
-
-## 🎯 Mapeo de Eventos a Agentes
-
-| Tipo de Evento | Agente Destino | Cola SQS |
-|----------------|----------------|----------|
-| `NEW_TRANSACTION`, `TRANSACTION_UPDATED` | Financial Insight | `financial-insight-queue` |
-| `NEW_GOAL_CREATED`, `GOAL_UPDATED` | Goals Agent | `goals-queue` |
-| `BUDGET_UPDATE_REQUEST`, `SPENDING_LIMIT_EXCEEDED` | Budget Balancer | `budget-balancer-queue` |
-| `MILESTONE_REACHED`, `GOAL_PROGRESS_UPDATE` | Motivational Coach | `motivational-coach-queue` |
-
----
-
-## 🧪 Testing
-
-### **Tests Unitarios**
-
-```bash
-# Ejecutar todos los tests
-npm run test
-
-# Tests con coverage
-npm run test:cov
-
-# Tests en watch mode
-npm run test:watch
-```
-
-### **Tests E2E**
-
-```bash
-npm run test:e2e
-```
-
-### **Testing Manual con Postman/curl**
-
-```bash
-# Ejemplo: Crear nueva meta
-curl -X POST http://localhost:3000/events \
-  -H "Content-Type: application/json" \
-  -d '{
-    "userId": "user456",
-    "type": "NEW_GOAL_CREATED",
-    "data": {
-      "goalId": "goal001",
-      "name": "Comprar moto",
-      "targetAmount": 5000000
-    }
-  }'
-```
-
-Ver más ejemplos en [`test-events.sh`](./test-events.sh)
-
----
-
-## 🗂️ Estructura del Proyecto
-
-```
-orchestrator/
-├── src/
-│   ├── controllers/
-│   │   └── events.controller.ts      # Endpoint POST /events
-│   ├── services/
-│   │   ├── events.service.ts         # Lógica principal de orquestación
-│   │   ├── sqs.service.ts            # Cliente AWS SQS
-│   │   └── langgraph.service.ts      # Decisiones con LangGraph
-│   ├── memory/
-│   │   ├── redis.service.ts          # Memoria episódica (eventos recientes)
-│   │   └── dynamodb.service.ts       # Memoria semántica (patrones)
-│   ├── app.module.ts                 # Módulo principal
-│   └── main.ts                       # Bootstrap
-├── test/
-│   └── *.spec.ts                     # Tests unitarios
-├── docker-compose.yml                # Redis local
-├── .env.example                      # Template de variables de entorno
-└── package.json
+# PostgreSQL Configuration
+EPISODIC_DB_HOST=...
+SEMANTIC_DB_HOST=...
+TRANSACTIONS_DB_HOST=...
+GOALS_DB_HOST=...
 ```
 
 ---
@@ -236,8 +111,8 @@ orchestrator/
 | **Lenguaje** | TypeScript 5 | Type safety y mejor DX |
 | **Orquestación** | LangGraph | Decisión de flujos (futuro: con LLM) |
 | **Mensajería** | AWS SQS | Comunicación asíncrona con agentes |
-| **Memoria Episódica** | Redis | Eventos recientes (TTL 24h) |
-| **Memoria Semántica** | DynamoDB | Patrones agregados (partition key: `user_id`, sort key: `pattern_type`) |
+| **Memoria Episódica** | PostgreSQL | Trazabilidad de acciones de agentes |
+| **Memoria Semántica** | PostgreSQL | Contexto general del usuario |
 | **Config** | @nestjs/config | Variables de entorno |
 | **Testing** | Jest | Tests unitarios y E2E |
 
@@ -329,16 +204,7 @@ aws sts get-caller-identity
 # 3. Asegúrate de incluir AWS_SESSION_TOKEN en .env
 ```
 
-### **Error: "Cannot connect to Redis"**
 
-**Solución**:
-```bash
-# Verificar que Redis esté corriendo
-docker-compose ps
-
-# Si no está corriendo, iniciarlo
-docker-compose up -d redis
-```
 
 ### **Logs de Debugging**
 
@@ -365,8 +231,8 @@ Para ver qué URL de SQS se está usando:
 ## 📝 Roadmap
 
 - [x] Endpoint `/events` con procesamiento básico
-- [x] Integración con Redis (memoria episódica)
-- [x] Integración con DynamoDB (memoria semántica)
+- [x] Integración con PostgreSQL (memoria episódica)
+- [x] Integración con PostgreSQL (memoria semántica)
 - [x] Decisión de flujos con LangGraph
 - [x] Publicación a SQS por agente
 - [ ] Worker de callbacks para respuestas de agentes

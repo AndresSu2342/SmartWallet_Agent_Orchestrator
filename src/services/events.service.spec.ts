@@ -1,7 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EventsService } from './events.service';
-import { RedisService } from '../memory/redis.service';
-import { DynamoService } from '../memory/dynamodb.service';
+import { PostgresEpisodicService } from '../memory/postgres-episodic.service';
+import { PostgresSemanticService } from '../memory/postgres-semantic.service';
+import { TransactionsDbService } from '../memory/transactions-db.service';
+import { GoalsDbService } from '../memory/goals-db.service';
 import { SqsService } from './sqs.service';
 import { LangGraphService } from './langgraph.service';
 
@@ -9,46 +11,70 @@ describe('EventsService', () => {
   let service: EventsService;
   let sqsService: SqsService;
   let langGraphService: LangGraphService;
+  let postgresEpisodicServiceMock: any;
+  let postgresSemanticServiceMock: any;
+  let transactionsDbServiceMock: any;
+  let goalsDbServiceMock: any;
 
   beforeEach(async () => {
+    postgresEpisodicServiceMock = {
+      getEpisodic: jest.fn().mockResolvedValue([]),
+      storeEpisodic: jest.fn().mockResolvedValue({ id: 1 }),
+    };
+    postgresSemanticServiceMock = {
+      getSemantic: jest.fn().mockResolvedValue({}),
+    };
+    transactionsDbServiceMock = {
+      getRecentTransactions: jest.fn().mockResolvedValue([]),
+      getCategories: jest.fn().mockResolvedValue([]),
+    };
+    goalsDbServiceMock = {
+      getGoalsByUser: jest.fn().mockResolvedValue([]),
+      getBudgetsByUser: jest.fn().mockResolvedValue([]),
+    };
+    sqsService = {
+      sendToQueue: jest.fn().mockResolvedValue({}),
+    } as any;
+    langGraphService = {
+      decideFlow: jest.fn().mockResolvedValue({
+        agent: 'financial-insight',
+        queueUrl: 'http://test-queue',
+        data: {},
+        id: 'test-123',
+      }),
+    } as any;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EventsService,
         {
-          provide: RedisService,
-          useValue: {
-            getEpisodic: jest.fn().mockResolvedValue([]),
-          },
+          provide: PostgresEpisodicService,
+          useValue: postgresEpisodicServiceMock,
         },
         {
-          provide: DynamoService,
-          useValue: {
-            getSemantic: jest.fn().mockResolvedValue({}),
-          },
+          provide: PostgresSemanticService,
+          useValue: postgresSemanticServiceMock,
+        },
+        {
+          provide: TransactionsDbService,
+          useValue: transactionsDbServiceMock,
+        },
+        {
+          provide: GoalsDbService,
+          useValue: goalsDbServiceMock,
         },
         {
           provide: SqsService,
-          useValue: {
-            sendToQueue: jest.fn().mockResolvedValue({}),
-          },
+          useValue: sqsService,
         },
         {
           provide: LangGraphService,
-          useValue: {
-            decideFlow: jest.fn().mockResolvedValue({
-              agent: 'financial-insight',
-              queueUrl: 'http://test-queue',
-              data: {},
-              id: 'test-123',
-            }),
-          },
+          useValue: langGraphService,
         },
       ],
     }).compile();
 
     service = module.get<EventsService>(EventsService);
-    sqsService = module.get<SqsService>(SqsService);
-    langGraphService = module.get<LangGraphService>(LangGraphService);
   });
 
   it('should be defined', () => {
@@ -83,50 +109,28 @@ describe('EventsService', () => {
       expect.objectContaining({
         episodic: [],
         semantic: {},
+        transactions: [],
+        goals: [],
       }),
     );
   });
 
-  it('should query memory before deciding', async () => {
-    const redisService = {
-      getEpisodic: jest.fn().mockResolvedValue(['event1', 'event2']),
-    };
-    const dynamoService = {
-      getSemantic: jest.fn().mockResolvedValue({ pattern: 'spending' }),
-    };
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        EventsService,
-        { provide: RedisService, useValue: redisService },
-        { provide: DynamoService, useValue: dynamoService },
-        {
-          provide: SqsService,
-          useValue: { sendToQueue: jest.fn() },
-        },
-        {
-          provide: LangGraphService,
-          useValue: {
-            decideFlow: jest.fn().mockResolvedValue({
-              agent: 'financial-insight',
-              queueUrl: 'test',
-              data: {},
-              id: 'test-123',
-            }),
-          },
-        },
-      ],
-    }).compile();
-
-    const testService = module.get<EventsService>(EventsService);
-
-    await testService.processEvent({
+  it('should query all PostgreSQL services before deciding', async () => {
+    await service.processEvent({
       userId: 'user789',
       type: 'NEW_TRANSACTION',
       data: {},
     });
 
-    expect(redisService.getEpisodic).toHaveBeenCalledWith('user789');
-    expect(dynamoService.getSemantic).toHaveBeenCalledWith('user789');
+    expect(postgresEpisodicServiceMock.getEpisodic).toHaveBeenCalledWith(
+      'user789',
+    );
+    expect(postgresSemanticServiceMock.getSemantic).toHaveBeenCalledWith(
+      'user789',
+    );
+    expect(
+      transactionsDbServiceMock.getRecentTransactions,
+    ).toHaveBeenCalledWith('user789', 20);
+    expect(goalsDbServiceMock.getGoalsByUser).toHaveBeenCalledWith('user789');
   });
 });
